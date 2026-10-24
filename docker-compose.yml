@@ -1,0 +1,32 @@
+
+services:
+  mongodb-logs:
+    image: mongo:4.4
+    container_name: srv_mongodb_logs
+    restart: always
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: SystemLogsDb
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin124
+    volumes:
+      - mongo_logs_volume:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: srv_mongo_express_ui
+    restart: always
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://admin:admin124@mongodb-logs:27017/?authSource=admin"
+      ME_CONFIG_OPTIONS_EDITORTHEME: "default"
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: "admin"
+      ME_CONFIG_BASICAUTH_PASSWORD: "admin124"
+    depends_on:
+      - mongodb-logs
+
+volumes:
+  mongo_logs_volume:
