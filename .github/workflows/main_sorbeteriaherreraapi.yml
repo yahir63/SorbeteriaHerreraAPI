@@ -10,7 +10,7 @@ on:
 env:
   AZURE_WEBAPP_NAME: "SorbetertiaHerreraAPI"
   DOTNET_VERSION: "10.0.x"
-  PROJECT_PATH: "SorbeteriaherreraAPI/HerreraSystemAPI.slnx"
+  PROJECT_PATH: "HerreraSystemAPI/HerreraSystem.API.csproj"
   OUTPUT_PATH: "${{ github.workspace }}/publish"
 
 jobs:
