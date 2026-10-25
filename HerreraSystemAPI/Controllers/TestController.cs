@@ -12,4 +12,7 @@ public class TestController : ControllerBase
     {
         throw new InvalidOperationException("Falla intencional para probar los logs.");
     }
+
+    [HttpGet("ping")]
+    public IActionResult Ping() => Ok("pong");
 }
