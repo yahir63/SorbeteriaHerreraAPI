@@ -6,4 +6,5 @@ namespace HerreraSystem.Application.Interfaces.Services;
 public interface IAuthService
 {
     Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginRequestDto dto);
+    Task<ServiceResult<string>> ChangePasswordAsync(ChangePasswordDto dto);
 }

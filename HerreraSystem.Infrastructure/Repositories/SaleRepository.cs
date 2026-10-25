@@ -65,12 +65,24 @@ namespace HerreraSystem.Infrastructure.Repositories
                 queryParams.StartDate,
                 queryParams.EndDate);
 
-            return await _context.Sales
+            var query = _context.Sales
                 .AsNoTracking()
                 .Where(s =>
                     s.SaleDate.HasValue &&
                     s.SaleDate.Value >= startDate &&
-                    s.SaleDate.Value < endDateExclusive)
+                    s.SaleDate.Value < endDateExclusive);
+
+            if (queryParams.SaleTypeId.HasValue)
+                query = query.Where(s => s.SaleTypeId == queryParams.SaleTypeId.Value);
+
+            if (!string.IsNullOrWhiteSpace(queryParams.Search))
+            {
+                var search = queryParams.Search.Trim();
+                query = query.Where(s => s.SaleCode.Contains(search) ||
+                    (s.Customer.FirstName + " " + s.Customer.LastName).Contains(search));
+            }
+
+            return await query
                 .OrderByDescending(s => s.SaleDate)
                 .ThenByDescending(s => s.Id)
                 .Select(s => new SaleListItemDto
@@ -85,7 +97,8 @@ namespace HerreraSystem.Infrastructure.Repositories
                     SaleTypeName = s.SaleType.SaleTypeName,
                     PaymentTypeId = s.PaymentTypeId,
                     PaymentTypeName = s.PaymentType.PaymentTypeName,
-                    Total = s.TotalSale
+                    Total = s.TotalSale,
+                    PaymentStatus = s.PaymentStatus
                 })
                 .ToPagedResponseAsync(queryParams);
         }

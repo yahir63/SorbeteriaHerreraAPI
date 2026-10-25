@@ -9,7 +9,7 @@ namespace HerreraSystem.Application.Interfaces.Services
 {
     public interface IUserService
     {
-        Task<ServiceResult<IEnumerable<UserDto>>> GetAllUsersAsync();
+        Task<ServiceResult<PagedResponse<UserDto>>> GetAllUsersAsync(PaginationParams paginationParams);
         Task<ServiceResult<UserDto>> GetByIdAsync(int id);
         Task<ServiceResult<string>> CreateAsync(CreateUserDto dto);
         Task<ServiceResult<string>> UpdateAsync(UpdateUserDto dto);

@@ -17,6 +17,8 @@ namespace HerreraSystem.Application.DTOs.InventoryDtos
         public int WarehouseStock { get; set; }   // Bodega     — LocationId = 2
         public int ReservedStock { get; set; }    // Reservado  — LocationId = 3
         public int TotalStock { get; set; }       // Suma total
+        public int MinimumStock { get; set; }
+        public bool LowStock { get; set; }
 
         public decimal? RetailPrice { get; set; }     // PriceTypeId = 1 "Detalle"
         public decimal? WholesalePrice { get; set; }  // PriceTypeId = 2 "Mayoreo"

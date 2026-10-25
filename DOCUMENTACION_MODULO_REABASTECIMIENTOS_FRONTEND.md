@@ -256,8 +256,9 @@ Los calculos del modulo se hacen desde los lotes asociados al reabastecimiento.
 
 Nota de fechas:
 
-- Si el listado no recibe `fromDate` ni `toDate`, backend filtra por el mes actual usando `DateTime.UtcNow`.
+- Si el listado no recibe `fromDate` ni `toDate`, backend filtra por el mes actual usando `INicaraguaDateTimeService` (`America/Managua`).
 - Si se envia `toDate`, backend la trata de forma inclusiva a nivel de dia: internamente usa `< toDate.Date.AddDays(1)`.
+- `fromDate` y `toDate` se interpretan como fechas de Managua; se descarta cualquier parte de hora y no se convierte la fecha recibida.
 - Si se envia solo `fromDate`, no hay limite superior practico.
 - Si se envia solo `toDate`, no hay limite inferior practico.
 

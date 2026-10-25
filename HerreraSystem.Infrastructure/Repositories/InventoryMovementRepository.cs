@@ -61,8 +61,34 @@ namespace HerreraSystem.Infrastructure.Repositories
         public async Task<PagedResponse<InventoryMovementListItemDto>> GetAllAsync(
             InventoryMovementQueryParams queryParams)
         {
-            return await _context.InventoryMovements
-                .AsNoTracking()
+            var query = _context.InventoryMovements.AsNoTracking().AsQueryable();
+
+            if (queryParams.MovementTypeId.HasValue)
+                query = query.Where(m => m.MovementTypeId == queryParams.MovementTypeId.Value);
+
+            if (queryParams.LocationId.HasValue)
+                query = query.Where(m => m.MovementDetails.Any(d =>
+                    d.SourceLocationId == queryParams.LocationId.Value ||
+                    d.DestinationLocationId == queryParams.LocationId.Value));
+
+            if (queryParams.FromDate.HasValue)
+                query = query.Where(m => m.MovementDate >= queryParams.FromDate.Value.Date);
+
+            if (queryParams.ToDate.HasValue && queryParams.ToDate.Value.Date < DateTime.MaxValue.Date)
+            {
+                var toDateExclusive = queryParams.ToDate.Value.Date.AddDays(1);
+                query = query.Where(m => m.MovementDate < toDateExclusive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(queryParams.Search))
+            {
+                var search = queryParams.Search.Trim();
+                query = query.Where(m =>
+                    (m.Notes != null && m.Notes.Contains(search)) ||
+                    m.MovementDetails.Any(d => d.Batch.Product.ProductName.Contains(search)));
+            }
+
+            return await query
                 .OrderByDescending(m => m.MovementDate)
                 .ThenByDescending(m => m.Id)
                 .Select(m => new InventoryMovementListItemDto
@@ -71,7 +97,25 @@ namespace HerreraSystem.Infrastructure.Repositories
                     MovementTypeId = m.MovementTypeId,
                     MovementTypeName = m.MovementType.MovementTypeName,
                     MovementDate = m.MovementDate,
-                    CreatedByUserName = m.CreatedByNavigation.UserName
+                    CreatedByUserName = m.CreatedByNavigation.UserName,
+                    ProductNames = m.MovementDetails
+                        .Select(d => d.Batch.Product.ProductName)
+                        .Distinct()
+                        .ToList(),
+                    TotalQuantity = m.MovementDetails.Sum(d => (int?)d.Quantity) ?? 0,
+                    SourceLocationNames = m.MovementDetails
+                        .Where(d => d.SourceLocation != null)
+                        .Select(d => d.SourceLocation!.LocationName)
+                        .Distinct()
+                        .ToList(),
+                    DestinationLocationNames = m.MovementDetails
+                        .Where(d => d.DestinationLocation != null)
+                        .Select(d => d.DestinationLocation!.LocationName)
+                        .Distinct()
+                        .ToList(),
+                    Notes = m.Notes,
+                    SaleId = m.SaleId,
+                    OrderId = m.OrderId
                 })
                 .ToPagedResponseAsync(queryParams);
         }

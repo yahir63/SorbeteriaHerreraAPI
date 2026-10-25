@@ -34,7 +34,7 @@ Endpoints disponibles:
 | Listar productos activos por linea-presentacion | GET | `/api/Products/by-line-presentation` | No requerida |
 | Obtener estadisticas de productos | GET | `/api/Products/stats` | No requerida |
 | Obtener producto por ID | GET | `/api/Products/{id}` | No requerida |
-| Subir imagen de producto | POST | `/api/uploads/products` | No requerida |
+| Subir imagen de producto | POST | `/api/uploads/products` | JWT Bearer con rol `Admin` |
 | Crear producto | POST | `/api/Products` | JWT Bearer requerido |
 | Actualizar producto completo | PUT | `/api/Products/{id}` | JWT Bearer requerido |
 | Actualizar producto parcialmente | PATCH | `/api/Products/{id}` | JWT Bearer requerido |
@@ -43,7 +43,7 @@ Endpoints disponibles:
 Notas importantes:
 
 - Existe `PUT` para procesar formularios de edicion completa y `PATCH` para actualizaciones parciales.
-- El campo `ImageUrl` ya no debe escribirse manualmente en el frontend. Primero se sube el archivo a `POST /api/uploads/products`; la API devuelve una URL relativa y esa URL se guarda luego en `ImageUrl`.
+- El campo `ImageUrl` ya no debe escribirse manualmente en el frontend. Primero se sube el archivo a `POST /api/uploads/products` con JWT Bearer y rol `Admin`; la API devuelve una URL relativa y esa URL se guarda luego en `ImageUrl`.
 - El campo `CreatedBy` ya no se recibe desde el frontend al crear productos. La API lo toma del JWT mediante `ICurrentUserService`.
 - Todas las respuestas exitosas/controladas estan envueltas en `ApiResponse<T>`.
 - Los listados devuelven `ApiResponse<PagedResponse<T>>`.
@@ -979,6 +979,7 @@ formData.append("file", selectedFile);
 
 const response = await fetch("/api/uploads/products", {
   method: "POST",
+  headers: { Authorization: `Bearer ${token}` },
   body: formData
 });
 ```
@@ -1593,7 +1594,7 @@ Authorization: Bearer {jwt}
 | `GET /api/Products/by-line-presentation` | No | Ninguno |
 | `GET /api/Products/stats` | No | Ninguno |
 | `GET /api/Products/{id}` | No | Ninguno |
-| `POST /api/uploads/products` | No | Ninguno |
+| `POST /api/uploads/products` | Si | `Admin` |
 | `POST /api/Products` | Si | Ninguno |
 | `PUT /api/Products/{id}` | Si | Ninguno |
 | `PATCH /api/Products/{id}` | Si | Ninguno |
@@ -1601,7 +1602,7 @@ Authorization: Bearer {jwt}
 
 Recomendacion de integracion:
 
-- El front-end debe enviar `Authorization: Bearer <token>` para crear, editar o eliminar productos.
+- El front-end debe enviar `Authorization: Bearer <token>` para subir imagenes y para crear, editar o eliminar productos. La subida requiere el rol `Admin`.
 - Si no se envia token en endpoints protegidos, la API responde `401 Unauthorized`.
 - Si en el futuro se agregan roles a Products, un token valido sin permisos respondera `403 Forbidden`.
 - La documentacion completa de JWT, claims y auditoria esta en `DOCUMENTACION_AUTORIZACION_JWT.md`.
@@ -1944,8 +1945,8 @@ PATCH /api/Products/{id}
 | Producto duplicado | `POST`, `PUT`, `PATCH` | 400 | `ApiResponse<T>.Fail(...)` con `data: null`. |
 | Producto con lotes | `DELETE` | 400 | `ApiResponse<object>.Fail(...)` con `data: null`. |
 | Producto con precios activos | `DELETE` | 400 | `ApiResponse<object>.Fail(...)` con `data: null`. |
-| Token ausente, expirado o invalido | `POST`, `PUT`, `PATCH`, `DELETE` | 401 | Respuesta de ASP.NET Core por `[Authorize]`. |
-| Token valido sin rol requerido futuro | `POST`, `PUT`, `PATCH`, `DELETE` | 403 | Aplica si luego se agregan roles/politicas. |
+| Token ausente, expirado o invalido | Escrituras protegidas y subida de imagen | 401 | `ApiResponse` JSON en español. |
+| Token valido sin rol requerido | `POST /api/uploads/products` | 403 | `ApiResponse` JSON en español; requiere `Admin`. |
 | Archivo de imagen nulo | `POST /api/uploads/products` | 400 | `ApiResponse<object>.Fail("El archivo es obligatorio")`. |
 | Archivo de imagen vacio | `POST /api/uploads/products` | 400 | `ApiResponse<object>.Fail("El archivo no puede estar vacío")`. |
 | Extension de imagen no permitida | `POST /api/uploads/products` | 400 | `ApiResponse<object>.Fail("Extensión de imagen no permitida")`. |

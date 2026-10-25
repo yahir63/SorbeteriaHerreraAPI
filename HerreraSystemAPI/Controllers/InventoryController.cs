@@ -3,6 +3,7 @@ using HerreraSystem.Application.DTOs.InventoryDtos;
 using HerreraSystem.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HerreraSystem.API.Controllers
 {
@@ -21,9 +22,11 @@ namespace HerreraSystem.API.Controllers
         /// Vista general de inventario por producto con stocks por ubicación y precios vigentes.
         /// </summary>
         [HttpGet("stats")]
-        public async Task<IActionResult> GetStats([FromQuery] string period = "week")
+        public async Task<IActionResult> GetStats(
+            [FromQuery] string period = "week",
+            [FromQuery] int days = 15)
         {
-            var data = await _inventoryService.GetStatsAsync(period);
+            var data = await _inventoryService.GetStatsAsync(period, days);
 
             return Ok(
                 ApiResponse<InventoryStatsDto>.Ok(
@@ -37,10 +40,11 @@ namespace HerreraSystem.API.Controllers
             [FromQuery] int? lineId,
             [FromQuery] int? flavorId,
             [FromQuery] int? presentationId,
+            [FromQuery] bool? lowStock,
             [FromQuery] PaginationParams paginationParams)
         {
             var data = await _inventoryService.GetAllAsync(
-                search, lineId, flavorId, presentationId, paginationParams);
+                search, lineId, flavorId, presentationId, paginationParams, lowStock);
 
             return Ok(
                 ApiResponse<PagedResponse<InventoryProductDto>>.Ok(data));
@@ -83,6 +87,21 @@ namespace HerreraSystem.API.Controllers
                         .Fail($"Lote con Id {batchId} no encontrado"));
 
             return Ok(ApiResponse<InventoryBatchDetailDto>.Ok(data));
+        }
+
+        [HttpGet("batches/expiring")]
+        [Authorize]
+        public async Task<IActionResult> GetExpiringBatches(
+            [FromQuery] int days = 15,
+            [FromQuery] string? search = null,
+            [FromQuery] int? lineId = null,
+            [FromQuery] int? presentationId = null,
+            [FromQuery] PaginationParams? paginationParams = null)
+        {
+            var data = await _inventoryService.GetExpiringBatchesAsync(
+                days, search, lineId, presentationId, paginationParams ?? new PaginationParams());
+
+            return Ok(ApiResponse<PagedResponse<ExpiringBatchDto>>.Ok(data));
         }
     }
 }

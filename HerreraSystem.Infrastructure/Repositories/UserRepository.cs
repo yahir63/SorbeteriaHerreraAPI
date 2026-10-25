@@ -3,6 +3,8 @@ using HerreraSystem.Domain.Entities;
 using HerreraSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
+using HerreraSystem.Application.Common;
+
 namespace HerreraSystem.Infrastructure.Repositories;
 
 public class UserRepository : IUserRepository
@@ -16,7 +18,10 @@ public class UserRepository : IUserRepository
         => await _context.Users.FirstOrDefaultAsync(u => u.UserName == userName);
 
     public async Task<User?> GetByIdWithRoleAsync(int id)
-        => await _context.Users.Include(u => u.UserRoles).FirstOrDefaultAsync(u => u.Id == id);
+        => await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == id);
 
     public async Task<List<string>> GetUserRolesAsync(int userId)
         => await _context.UserRoles
@@ -41,11 +46,14 @@ public class UserRepository : IUserRepository
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
     }
-    public async Task<IEnumerable<User>> GetAllWithRolesAsync()
+    public async Task<HerreraSystem.Application.Common.PagedResponse<User>> GetAllWithRolesAsync(
+        HerreraSystem.Application.Common.PaginationParams paginationParams)
     => await _context.Users
+        .AsNoTracking()
         .Include(u => u.UserRoles)
         .ThenInclude(ur => ur.Role)
-        .ToListAsync();
+        .OrderBy(u => u.Id)
+        .ToPagedResponseAsync(paginationParams);
 
     public async Task<User?> GetByEmailAsync(string email)
         => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);

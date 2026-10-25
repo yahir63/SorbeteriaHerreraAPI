@@ -7,5 +7,7 @@ namespace HerreraSystem.Application.DTOs.SaleDtos
         public DateTime? StartDate { get; set; }
 
         public DateTime? EndDate { get; set; }
+        public int? SaleTypeId { get; set; }
+        public string? Search { get; set; }
     }
 }

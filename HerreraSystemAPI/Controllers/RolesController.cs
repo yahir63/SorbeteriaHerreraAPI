@@ -2,11 +2,13 @@
 using HerreraSystem.Application.DTOs.RoleDtos;
 using HerreraSystem.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HerreraSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin")]
 public class RolesController : ControllerBase
 {
     private readonly IRoleService _roleService;

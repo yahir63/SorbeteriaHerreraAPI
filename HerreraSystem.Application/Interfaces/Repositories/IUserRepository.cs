@@ -1,4 +1,5 @@
 ﻿using HerreraSystem.Domain.Entities;
+using HerreraSystem.Application.Common;
 
 namespace HerreraSystem.Application.Interfaces.Repositories
 {
@@ -9,7 +10,7 @@ namespace HerreraSystem.Application.Interfaces.Repositories
         Task<List<string>> GetUserRolesAsync(int userId);
         Task<Role?> GetRoleByNameAsync(string roleName);
         Task<User?> GetByResetTokenAsync(string token);
-        Task<IEnumerable<User>> GetAllWithRolesAsync();
+        Task<PagedResponse<User>> GetAllWithRolesAsync(PaginationParams paginationParams);
         Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByIdNumberAsync(string idNumber);
         Task<int> CountActiveAdminsAsync();

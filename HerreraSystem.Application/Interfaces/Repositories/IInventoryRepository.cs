@@ -19,13 +19,21 @@ namespace HerreraSystem.Application.Interfaces.Repositories
             int? lineId,
             int? flavorId,
             int? presentationId,
-            PaginationParams paginationParams);
+            PaginationParams paginationParams,
+            bool? lowStock = null);
 
         Task<InventoryProductBatchesDto?> GetProductBatchesAsync(int productId);
 
         Task<InventoryBatchDetailDto?> GetBatchDetailAsync(int batchId);
 
-        Task<InventoryStatsDto> GetStatsAsync(string period);
+        Task<PagedResponse<ExpiringBatchDto>> GetExpiringBatchesAsync(
+            int days,
+            string? search,
+            int? lineId,
+            int? presentationId,
+            PaginationParams paginationParams);
+
+        Task<InventoryStatsDto> GetStatsAsync(string period, int expiringDays = 15);
 
     }
 }

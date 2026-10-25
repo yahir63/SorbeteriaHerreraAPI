@@ -11,5 +11,12 @@ namespace HerreraSystem.Application.DTOs.InventoryMovementDtos
         public DateTime? MovementDate { get; set; }
 
         public string? CreatedByUserName { get; set; }
+        public List<string> ProductNames { get; set; } = new();
+        public int TotalQuantity { get; set; }
+        public List<string> SourceLocationNames { get; set; } = new();
+        public List<string> DestinationLocationNames { get; set; } = new();
+        public string? Notes { get; set; }
+        public int? SaleId { get; set; }
+        public int? OrderId { get; set; }
     }
 }

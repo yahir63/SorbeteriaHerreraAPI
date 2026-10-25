@@ -10,6 +10,7 @@ namespace HerreraSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin")]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -20,10 +21,10 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] PaginationParams paginationParams)
     {
-        var result = await _userService.GetAllUsersAsync();
-        return Ok(ApiResponse<IEnumerable<UserDto>>.Ok(result.Data!));
+        var result = await _userService.GetAllUsersAsync(paginationParams);
+        return Ok(ApiResponse<PagedResponse<UserDto>>.Ok(result.Data!));
     }
 
     [HttpGet("{id}")]
@@ -76,6 +77,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
     {
         var result = await _userService.GeneratePasswordResetTokenAsync(dto);
@@ -86,7 +88,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPatch("{id}/reset-password")]
-    
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordDto dto)
     {
         if (id != dto.UserId)
