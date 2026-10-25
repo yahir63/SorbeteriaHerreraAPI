@@ -2,11 +2,13 @@ using HerreraSystem.Application.Common;
 using HerreraSystem.Application.DTOs.UploadDtos;
 using HerreraSystem.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HerreraSystem.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class UploadsController : ControllerBase
     {
         private readonly IProductImageService _productImageService;

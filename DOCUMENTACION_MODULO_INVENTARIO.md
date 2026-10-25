@@ -378,6 +378,8 @@ Ids de `SaleType` confirmados:
 | `WarehouseStock` | `int` | `number` | No | Suma `BatchLocations.CurrentStock` con `LocationId == 1` |
 | `ReservedStock` | `int` | `number` | No | Suma `BatchLocations.CurrentStock` con `LocationId == 3` |
 | `TotalStock` | `int` | `number` | No | Suma todo `BatchLocations.CurrentStock` |
+| `MinimumStock` | `int` | `number` | No | `Product.MinimumStock` |
+| `LowStock` | `bool` | `boolean` | No | `TotalStock <= MinimumStock` |
 | `RetailPrice` | `decimal?` | `number \| null` | Si | Precio general activo `PriceTypeId == 1`, `ProductId == null`, vigente |
 | `WholesalePrice` | `decimal?` | `number \| null` | Si | Precio general activo `PriceTypeId == 2`, `ProductId == null`, vigente |
 
@@ -388,7 +390,9 @@ Respuesta del endpoint de estadisticas para cards superiores del modulo de inven
 | Propiedad | C# | TypeScript | Nullable | Descripcion |
 |---|---:|---:|---:|---|
 | `TotalProducts` | `int` | `number` | No | Cantidad de productos activos (`Product.IsActive == true`). |
+| `TotalUnits` | `int` | `number` | No | Suma `BatchLocation.CurrentStock` de todas las ubicaciones y lotes. |
 | `LowStockProducts` | `int` | `number` | No | Productos activos cuyo stock disponible es menor o igual a `MinimumStock`. |
+| `ExpiringLots` | `int` | `number` | No | Lotes con stock total positivo que vencen desde hoy hasta hoy + `days`, inclusive. No incluye lotes vencidos. |
 | `BestSellingFlavor` | `BestSellingFlavorDto?` | `BestSellingFlavorDto \| null` | Si | Sabor mas vendido del periodo solicitado. Puede ser `null` si no hay ventas en el periodo. |
 | `InventoryValue` | `decimal` | `number` | No | Valor economico actual del stock existente. |
 
@@ -560,6 +564,13 @@ Hereda de `PaginationParams`.
 |---|---:|---:|---:|
 | `Page` | `int` | `number` | `1` |
 | `PageSize` | `int` | `number` | `10`, maximo `50` |
+| `MovementTypeId` | `int?` | `number \| null` | — |
+| `LocationId` | `int?` | `number \| null` | — |
+| `FromDate` | `DateTime?` | `string \| null` | — |
+| `ToDate` | `DateTime?` | `string \| null` | — |
+| `Search` | `string?` | `string \| null` | — |
+
+`LocationId` coincide si es origen o destino de algun detalle. `Search` busca en notas y nombres de producto. `fromDate` y `toDate` se interpretan como fechas de Managua y se usa solo la parte de fecha; `toDate` es inclusivo.
 
 #### `InventoryMovementListItemDto`
 
@@ -570,6 +581,13 @@ Hereda de `PaginationParams`.
 | `MovementTypeName` | `string` | `string` | No |
 | `MovementDate` | `DateTime?` | `string \| null` | Si |
 | `CreatedByUserName` | `string?` | `string \| null` | Si |
+| `ProductNames` | `List<string>` | `string[]` | No |
+| `TotalQuantity` | `int` | `number` | No |
+| `SourceLocationNames` | `List<string>` | `string[]` | No |
+| `DestinationLocationNames` | `List<string>` | `string[]` | No |
+| `Notes` | `string?` | `string \| null` | Si |
+| `SaleId` | `int?` | `number \| null` | Si |
+| `OrderId` | `int?` | `number \| null` | Si |
 
 #### `InventoryMovementHeaderDto`
 
@@ -614,7 +632,6 @@ Hereda de `PaginationParams`.
 
 | Propiedad | C# | TypeScript | Obligatorio | Validaciones |
 |---|---:|---:|---:|---|
-| `CreatedBy` | `int` | `number` | Si | `[Required("El CreatedBy es obligatorio")]` |
 | `Notes` | `string?` | `string \| null` | No | Ninguna |
 | `Batches` | `List<CreateRestockBatchDto>` | `CreateRestockBatchDto[]` | Si | `[Required]`, `[MinLength(1, "Debe incluir al menos un lote")]` |
 
@@ -720,9 +737,9 @@ Reglas de `ProductImageService`:
 
 Todos los endpoints estan bajo `api/[controller]`. A menos que se indique lo contrario:
 
-- No tienen `[Authorize]`.
-- No exigen rol.
-- Aceptan JWT Bearer si el cliente lo envia, pero no es requerido por atributo.
+- No tienen `[Authorize]`. La excepcion es `GET /api/Inventory/batches/expiring`, que requiere cualquier JWT valido.
+- El endpoint de lotes por vencer no exige rol especifico; los demas endpoints de esta seccion son publicos.
+- Los endpoints publicos aceptan JWT Bearer si el cliente lo envia, pero no lo requieren.
 - Los cuerpos JSON no tienen `[FromBody]` explicito; con `[ApiController]` ASP.NET Core infiere body para DTOs complejos.
 
 ### 5.1 Inventario
@@ -738,6 +755,7 @@ Parametros:
 | Nombre | Ubicacion | C# | Requerido | Default | Valores soportados |
 |---|---|---:|---:|---:|---|
 | `period` | Query | `string` | No | `week` | `day`, `week`, `month`, `year`, `all`. Si llega otro valor, se normaliza a `week`. |
+| `days` | Query | `int` | No | `15` | Ventana de días para contar lotes con vencimiento próximo; no cuenta lotes vencidos. |
 
 Respuesta `200 OK`:
 
@@ -755,7 +773,7 @@ Ejemplo:
 
 ```http
 GET /api/Inventory/stats
-GET /api/Inventory/stats?period=month
+GET /api/Inventory/stats?period=month&days=15
 ```
 
 Ejemplo de respuesta:
@@ -766,7 +784,9 @@ Ejemplo de respuesta:
   "message": "Estadísticas de inventario obtenidas exitosamente",
   "data": {
     "totalProducts": 35,
+    "totalUnits": 812,
     "lowStockProducts": 4,
+    "expiringLots": 3,
     "bestSellingFlavor": {
       "flavorId": 2,
       "flavorName": "Fresa",
@@ -781,8 +801,70 @@ Ejemplo de respuesta:
 Notas:
 
 - Si no hay ventas en el periodo, `bestSellingFlavor` puede venir como `null`.
-- El periodo `week` usa los ultimos 7 dias desde `DateTime.UtcNow`.
+- `totalUnits` suma `CurrentStock` de todos los registros de `BatchLocation`.
+- `expiringLots` cuenta lotes con stock total mayor que cero cuyo vencimiento cae entre hoy y hoy + `days`, ambos incluidos. No incluye lotes ya vencidos.
+- "Hoy" y los periodos se calculan con `INicaraguaDateTimeService` (`America/Managua`).
+- El periodo `week` usa los ultimos 7 dias desde la fecha y hora local de Nicaragua.
 - `all` no aplica filtro por fecha.
+
+#### `GET /api/Inventory/batches/expiring`
+
+Lista lotes con stock positivo cuyo vencimiento es anterior o igual a hoy + `days`. Incluye los vencidos y los marca con `isExpired`.
+
+Autenticacion: requerida con cualquier JWT valido. No exige rol especifico.
+
+Parametros opcionales:
+
+| Nombre | Ubicacion | C# | Default | Descripcion |
+|---|---|---:|---:|---|
+| `days` | Query | `int` | `15` | Ventana hacia adelante desde hoy; los lotes vencidos se incluyen sin limite inferior. |
+| `search` | Query | `string?` | — | Busca por nombre de producto o codigo de lote. |
+| `lineId` | Query | `int?` | — | Filtra por linea del producto. |
+| `presentationId` | Query | `int?` | — | Filtra por presentacion del producto. |
+| `page` | Query | `int` | `1` | Pagina. |
+| `pageSize` | Query | `int` | `10` | Tamaño de pagina, maximo `50`. |
+
+Ejemplo:
+
+```http
+GET /api/Inventory/batches/expiring?days=15&search=fresa&lineId=2&page=1&pageSize=10
+Authorization: Bearer {token}
+```
+
+Respuesta: `ApiResponse<PagedResponse<ExpiringBatchDto>>`.
+
+```json
+{
+  "success": true,
+  "message": "Operación exitosa",
+  "data": {
+    "data": [
+      {
+        "productId": 10,
+        "productName": "Helado de Fresa",
+        "batchId": 25,
+        "batchCode": "LOT-2026-025",
+        "expirationDate": "2026-10-20",
+        "daysToExpire": -4,
+        "isExpired": true,
+        "totalStock": 8,
+        "stockByLocation": [
+          { "locationId": 1, "locationName": "Bodega", "currentStock": 5 },
+          { "locationId": 2, "locationName": "Mostrador", "currentStock": 3 }
+        ]
+      }
+    ],
+    "currentPage": 1,
+    "pageSize": 10,
+    "totalRecords": 1,
+    "totalPages": 1,
+    "hasNextPage": false,
+    "hasPreviousPage": false
+  }
+}
+```
+
+`expirationDate` se trata como fecha ingresada y no se convierte de zona horaria. "Hoy" se obtiene de `INicaraguaDateTimeService` (`America/Managua`). El orden es vencimiento ascendente.
 
 #### `GET /api/Inventory`
 
@@ -798,6 +880,7 @@ Parametros:
 | `lineId` | Query | `int?` | No | Filtra por `Product.LinePresentation.LineId`. |
 | `flavorId` | Query | `int?` | No | Filtra por `Product.FlavorId`. |
 | `presentationId` | Query | `int?` | No | Filtra por `Product.LinePresentation.PresentationId`. |
+| `lowStock` | Query | `bool?` | No | Filtra por stock bajo (`true`) o no bajo (`false`). `LowStock` es `TotalStock <= MinimumStock`. |
 | `page` / `Page` | Query | `int` | No | Default `1`. |
 | `pageSize` / `PageSize` | Query | `int` | No | Default `10`, max `50`. |
 
@@ -818,6 +901,19 @@ Ejemplo:
 
 ```http
 GET /api/Inventory?page=1&pageSize=10&search=chocolate&lineId=2
+GET /api/Inventory?page=1&pageSize=10&lowStock=true
+```
+
+Cada `InventoryProductDto` incluye `minimumStock` y `lowStock`. `TotalStock` suma el stock de todos los `BatchLocation` del producto, y la comparación de `lowStock` usa ese mismo total.
+
+Fragmento de respuesta de una fila:
+
+```json
+{
+  "totalStock": 7,
+  "minimumStock": 10,
+  "lowStock": true
+}
 ```
 
 #### `GET /api/Inventory/products`
@@ -1148,7 +1244,7 @@ Errores:
 
 #### `POST /api/Uploads/products`
 
-Autenticacion: no requerida actualmente. Token opcional `Bearer JWT`. Roles: ninguno.
+Autenticacion: JWT Bearer requerido. Rol requerido: `Admin`.
 
 Content-Type:
 
@@ -1175,7 +1271,11 @@ Ejemplo TypeScript:
 ```ts
 const form = new FormData();
 form.append("file", file);
-await fetch("/api/Uploads/products", { method: "POST", body: form });
+await fetch("/api/Uploads/products", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}` },
+  body: form
+});
 ```
 
 ### 5.4 Reabastecimientos
@@ -1214,7 +1314,6 @@ Ejemplo:
 
 ```json
 {
-  "createdBy": 1,
   "notes": "Produccion inicial",
   "batches": [
     {
@@ -1603,15 +1702,37 @@ export interface InventoryProductDto {
   warehouseStock: number;
   reservedStock: number;
   totalStock: number;
+  minimumStock: number;
+  lowStock: boolean;
   retailPrice: number | null;
   wholesalePrice: number | null;
 }
 
 export interface InventoryStatsDto {
   totalProducts: number;
+  totalUnits: number;
   lowStockProducts: number;
+  expiringLots: number;
   bestSellingFlavor: BestSellingFlavorDto | null;
   inventoryValue: number;
+}
+
+export interface ExpiringBatchDto {
+  productId: number;
+  productName: string;
+  batchId: number;
+  batchCode: string | null;
+  expirationDate: string;
+  daysToExpire: number;
+  isExpired: boolean;
+  totalStock: number;
+  stockByLocation: ExpiringBatchLocationDto[];
+}
+
+export interface ExpiringBatchLocationDto {
+  locationId: number;
+  locationName: string;
+  currentStock: number;
 }
 
 export interface BestSellingFlavorDto {
@@ -1670,7 +1791,6 @@ export interface CreateRestockBatchDto {
 }
 
 export interface CreateRestockDto {
-  createdBy: number;
   notes?: string | null;
   batches: CreateRestockBatchDto[];
 }
@@ -1720,6 +1840,13 @@ export interface InventoryMovementListItemDto {
   movementTypeName: string;
   movementDate?: string | null;
   createdByUserName?: string | null;
+  productNames: string[];
+  totalQuantity: number;
+  sourceLocationNames: string[];
+  destinationLocationNames: string[];
+  notes?: string | null;
+  saleId?: number | null;
+  orderId?: number | null;
 }
 
 export interface InventoryMovementHeaderDto {

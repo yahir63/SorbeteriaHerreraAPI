@@ -41,7 +41,7 @@ El modulo sigue el patron usado en Sales y Restock:
 
 ## 4. Seguridad
 
-Los endpoints GET no tienen atributo `[Authorize]`, igual que los endpoints GET de Sales y Restock.
+Los endpoints GET de este modulo no tienen atributo `[Authorize]`, igual que los endpoints GET de Sales y Restock. La excepcion relacionada con inventario es `GET /api/Inventory/batches/expiring`, que requiere un JWT valido.
 
 Los endpoints POST actuales tampoco tienen `[Authorize]` en el controller de movimientos. Reciben `CreatedBy` desde el body.
 
@@ -111,7 +111,7 @@ Ejemplo exitoso:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": {}
 }
 ```
@@ -164,6 +164,11 @@ Hereda de `PaginationParams`.
 interface InventoryMovementQueryParams {
   page?: number;
   pageSize?: number;
+  movementTypeId?: number;
+  locationId?: number;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
 }
 ```
 
@@ -174,6 +179,22 @@ Valores por defecto:
 | `page` | `1` | N/A |
 | `pageSize` | `10` | `50` |
 
+Filtros opcionales:
+
+| Parametro | Comportamiento |
+|---|---|
+| `movementTypeId` | Coincide con el tipo del movimiento. |
+| `locationId` | Coincide si es origen o destino de cualquier detalle. |
+| `fromDate` | Fecha inicial; se usa solo la parte de fecha. |
+| `toDate` | Fecha final inclusiva; se usa solo la parte de fecha. |
+| `search` | Busca en las notas o en el nombre del producto asociado a un detalle. |
+
+Las fechas se interpretan como fechas de Managua (`America/Managua`), descartando cualquier parte de hora. `toDate` incluye todo ese día. Ejemplo:
+
+```http
+GET /api/InventoryMovements?movementTypeId=1002&locationId=2&fromDate=2026-10-01&toDate=2026-10-24&search=fresa&page=1&pageSize=10
+```
+
 ### 8.3 `InventoryMovementListItemDto`
 
 ```ts
@@ -183,6 +204,13 @@ interface InventoryMovementListItemDto {
   movementTypeName: string;
   movementDate?: string | null;
   createdByUserName?: string | null;
+  productNames: string[];
+  totalQuantity: number;
+  sourceLocationNames: string[];
+  destinationLocationNames: string[];
+  notes?: string | null;
+  saleId?: number | null;
+  orderId?: number | null;
 }
 ```
 
@@ -337,7 +365,7 @@ Ejemplo:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": {
     "movementsToday": 28,
     "restocksToday": 8,
@@ -385,7 +413,7 @@ Ejemplo:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": {
     "data": [
       {
@@ -393,7 +421,14 @@ Ejemplo:
         "movementTypeId": 1002,
         "movementTypeName": "Transferencia",
         "movementDate": "2026-06-25T09:45:00",
-        "createdByUserName": "admin"
+        "createdByUserName": "admin",
+        "productNames": ["Helado de Fresa", "Helado de Vainilla"],
+        "totalQuantity": 12,
+        "sourceLocationNames": ["Bodega"],
+        "destinationLocationNames": ["Mostrador"],
+        "notes": "Traslado a mostrador",
+        "saleId": null,
+        "orderId": null
       }
     ],
     "currentPage": 1,
@@ -405,6 +440,8 @@ Ejemplo:
   }
 }
 ```
+
+`productNames`, `sourceLocationNames` y `destinationLocationNames` contienen valores distintos asociados a los detalles. `totalQuantity` suma `Quantity` de todos los detalles del movimiento.
 
 ### 10.3 Encabezado de movimiento
 
@@ -431,7 +468,7 @@ Ejemplo:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": {
     "id": 15,
     "movementTypeId": 1002,
@@ -484,7 +521,7 @@ Ejemplo:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": [
     {
       "id": 1,
@@ -507,7 +544,7 @@ Respuesta si el movimiento existe pero no tiene detalles:
 ```json
 {
   "success": true,
-  "message": "Operacion exitosa",
+  "message": "Operación exitosa",
   "data": []
 }
 ```

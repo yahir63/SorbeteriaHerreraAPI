@@ -7,7 +7,9 @@ namespace HerreraSystem.Application.DTOs.InventoryDtos
     public class InventoryStatsDto
     {
         public int TotalProducts { get; set; }
+        public int TotalUnits { get; set; }
         public int LowStockProducts { get; set; }
+        public int ExpiringLots { get; set; }
         public BestSellingFlavorDto? BestSellingFlavor { get; set; }
         public decimal InventoryValue { get; set; }
     }

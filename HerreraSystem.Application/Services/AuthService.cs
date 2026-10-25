@@ -15,11 +15,16 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepo;
     private readonly IConfiguration _config;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AuthService(IUserRepository userRepo, IConfiguration config)
+    public AuthService(
+        IUserRepository userRepo,
+        IConfiguration config,
+        ICurrentUserService currentUserService)
     {
         _userRepo = userRepo;
         _config = config;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginRequestDto dto)
@@ -51,6 +56,30 @@ public class AuthService : IAuthService
         };
 
         return ServiceResult<AuthResponseDto>.Ok(response);
+    }
+
+    public async Task<ServiceResult<string>> ChangePasswordAsync(ChangePasswordDto dto)
+    {
+        if (_currentUserService.CurrentUserId is not int userId)
+            return ServiceResult<string>.Fail("No se pudo identificar el usuario autenticado.");
+
+        if (string.IsNullOrEmpty(dto.NewPassword) || dto.NewPassword.Length < 8)
+            return ServiceResult<string>.Fail("La nueva contraseña debe tener al menos 8 caracteres.");
+
+        if (string.IsNullOrEmpty(dto.CurrentPassword))
+            return ServiceResult<string>.Fail("La contraseña actual es requerida.");
+
+        var user = await _userRepo.GetByIdWithRoleAsync(userId);
+        if (user is null)
+            return ServiceResult<string>.Fail("Usuario no encontrado.");
+
+        if (!VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+            return ServiceResult<string>.Fail("La contraseña actual es incorrecta.");
+
+        user.PasswordHash = Encoding.UTF8.GetBytes(BCrypt.Net.BCrypt.HashPassword(dto.NewPassword));
+        await _userRepo.UpdateAsync(user);
+
+        return ServiceResult<string>.Ok("Contraseña actualizada exitosamente.");
     }
 
     private string GenerateJwtToken(User user, List<string> roles)

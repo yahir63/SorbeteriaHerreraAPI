@@ -30,9 +30,10 @@ namespace HerreraSystem.Application.Services
             int? lineId,
             int? flavorId,
             int? presentationId,
-            PaginationParams paginationParams)
+            PaginationParams paginationParams,
+            bool? lowStock = null)
             => await _inventoryRepository.GetAllAsync(
-                search, lineId, flavorId, presentationId, paginationParams);
+                search, lineId, flavorId, presentationId, paginationParams, lowStock);
 
         public async Task<InventoryProductBatchesDto?> GetProductBatchesAsync(int productId)
             => await _inventoryRepository.GetProductBatchesAsync(productId);
@@ -40,8 +41,17 @@ namespace HerreraSystem.Application.Services
         public async Task<InventoryBatchDetailDto?> GetBatchDetailAsync(int batchId)
             => await _inventoryRepository.GetBatchDetailAsync(batchId);
 
-        public async Task<InventoryStatsDto> GetStatsAsync(string period)
-            => await _inventoryRepository.GetStatsAsync(period);
+        public async Task<PagedResponse<ExpiringBatchDto>> GetExpiringBatchesAsync(
+            int days,
+            string? search,
+            int? lineId,
+            int? presentationId,
+            PaginationParams paginationParams)
+            => await _inventoryRepository.GetExpiringBatchesAsync(
+                days, search, lineId, presentationId, paginationParams);
+
+        public async Task<InventoryStatsDto> GetStatsAsync(string period, int expiringDays = 15)
+            => await _inventoryRepository.GetStatsAsync(period, expiringDays);
 
     }
 }

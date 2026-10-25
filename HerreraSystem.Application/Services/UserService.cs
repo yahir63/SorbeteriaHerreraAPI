@@ -17,10 +17,10 @@ public class UserService : IUserService
         _userRepo = userRepo;
     }
 
-    public async Task<ServiceResult<IEnumerable<UserDto>>> GetAllUsersAsync()
+    public async Task<ServiceResult<PagedResponse<UserDto>>> GetAllUsersAsync(PaginationParams paginationParams)
     {
-        var users = await _userRepo.GetAllWithRolesAsync();
-        var usersDto = users.Select(u => new UserDto
+        var users = await _userRepo.GetAllWithRolesAsync(paginationParams);
+        var usersDto = users.Data.Select(u => new UserDto
         {
             Id = u.Id,
             UserName = u.UserName,
@@ -32,7 +32,14 @@ public class UserService : IUserService
             Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList()
         });
 
-        return ServiceResult<IEnumerable<UserDto>>.Ok(usersDto);
+        return ServiceResult<PagedResponse<UserDto>>.Ok(new PagedResponse<UserDto>
+        {
+            Data = usersDto.ToList(),
+            CurrentPage = users.CurrentPage,
+            PageSize = users.PageSize,
+            TotalRecords = users.TotalRecords,
+            TotalPages = users.TotalPages
+        });
     }
 
     public async Task<ServiceResult<UserDto>> GetByIdAsync(int id)

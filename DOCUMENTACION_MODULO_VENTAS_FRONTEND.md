@@ -83,7 +83,7 @@ Response:
 ```json
 {
   "success": true,
-  "message": null,
+  "message": "Operación exitosa",
   "data": {
     "salesThisMonth": 25,
     "totalIncomeThisMonth": 15000.00,
@@ -107,21 +107,23 @@ Parametros:
 
 - `startDate` opcional, formato `YYYY-MM-DD`.
 - `endDate` opcional, formato `YYYY-MM-DD`.
+- `saleTypeId` opcional, filtra por tipo de venta.
+- `search` opcional, busca por `SaleCode` o nombre del cliente.
 - `page` opcional, por defecto `1`.
 - `pageSize` opcional, por defecto `10`, maximo `50`.
 
 Ejemplo:
 
-`GET /api/Sales?startDate=2026-06-01&endDate=2026-06-30&page=1&pageSize=10`
+`GET /api/Sales?startDate=2026-06-01&endDate=2026-06-30&saleTypeId=1&search=VTA-2026&page=1&pageSize=10`
 
-Si no se envia rango, se usa el mes actual. `endDate` incluye todo el dia recibido.
+Si no se envia rango, se usa el mes actual. Las fechas se interpretan con la fecha local de Managua y solo se usa la parte de fecha. `endDate` incluye todo el dia recibido.
 
 Response:
 
 ```json
 {
   "success": true,
-  "message": null,
+  "message": "Operación exitosa",
   "data": {
     "data": [
       {
@@ -133,7 +135,8 @@ Response:
         "saleTypeName": "Detalle",
         "paymentTypeId": 1,
         "paymentTypeName": "Contado",
-        "total": 500.00
+        "total": 500.00,
+        "paymentStatus": "Pagado"
       }
     ],
     "currentPage": 1,
@@ -161,7 +164,7 @@ Response:
 ```json
 {
   "success": true,
-  "message": null,
+  "message": "Operación exitosa",
   "data": {
     "id": 1,
     "saleCode": "VTA-2026-0001",
@@ -206,7 +209,7 @@ Response:
 ```json
 {
   "success": true,
-  "message": null,
+  "message": "Operación exitosa",
   "data": [
     {
       "id": 1,
@@ -236,7 +239,7 @@ Response:
 ```json
 {
   "success": true,
-  "message": null,
+  "message": "Operación exitosa",
   "data": [
     {
       "id": 1,

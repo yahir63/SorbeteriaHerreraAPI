@@ -19,5 +19,6 @@ namespace HerreraSystem.Application.DTOs.SaleDtos
         public string PaymentTypeName { get; set; } = null!;
 
         public decimal Total { get; set; }
+        public string PaymentStatus { get; set; } = null!;
     }
 }

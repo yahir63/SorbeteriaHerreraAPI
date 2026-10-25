@@ -37,7 +37,7 @@ namespace HerreraSystem.Infrastructure.Repositories
             int? presentationId)
         {
             return await BuildInventoryProductsQuery(
-                    search, lineId, flavorId, presentationId)
+                    search, lineId, flavorId, presentationId, null)
                 .ToListAsync();
         }
 
@@ -46,10 +46,11 @@ namespace HerreraSystem.Infrastructure.Repositories
             int? lineId,
             int? flavorId,
             int? presentationId,
-            PaginationParams paginationParams)
+            PaginationParams paginationParams,
+            bool? lowStock = null)
         {
             var query = BuildInventoryProductsQuery(
-                search, lineId, flavorId, presentationId);
+                search, lineId, flavorId, presentationId, lowStock);
 
             return await query.ToPagedResponseAsync(paginationParams);
         }
@@ -176,7 +177,78 @@ namespace HerreraSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<InventoryStatsDto> GetStatsAsync(string period)
+        public async Task<PagedResponse<ExpiringBatchDto>> GetExpiringBatchesAsync(
+            int days,
+            string? search,
+            int? lineId,
+            int? presentationId,
+            PaginationParams paginationParams)
+        {
+            var today = DateOnly.FromDateTime(_dateTimeService.Now.Date);
+            var expirationThrough = today.AddDays(days);
+            var query = _context.Batches
+                .AsNoTracking()
+                .Include(b => b.Product)
+                    .ThenInclude(p => p.LinePresentation)
+                .Include(b => b.BatchLocations)
+                    .ThenInclude(bl => bl.Location)
+                .Where(b => b.ExpirationDate <= expirationThrough)
+                .Where(b => b.BatchLocations.Sum(bl => (int?)bl.CurrentStock) > 0);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var value = search.Trim();
+                query = query.Where(b =>
+                    b.Product.ProductName.Contains(value) ||
+                    (b.BatchCode != null && b.BatchCode.Contains(value)));
+            }
+
+            if (lineId.HasValue)
+                query = query.Where(b => b.Product.LinePresentation.LineId == lineId.Value);
+
+            if (presentationId.HasValue)
+                query = query.Where(b => b.Product.LinePresentation.PresentationId == presentationId.Value);
+
+            var totalRecords = await query.CountAsync();
+            var batches = await query
+                .OrderBy(b => b.ExpirationDate)
+                .ThenBy(b => b.Id)
+                .Skip((paginationParams.Page - 1) * paginationParams.PageSize)
+                .Take(paginationParams.PageSize)
+                .ToListAsync();
+
+            var items = batches.Select(b => new ExpiringBatchDto
+            {
+                ProductId = b.ProductId,
+                ProductName = b.Product.ProductName,
+                BatchId = b.Id,
+                BatchCode = b.BatchCode,
+                ExpirationDate = b.ExpirationDate,
+                DaysToExpire = b.ExpirationDate.DayNumber - today.DayNumber,
+                IsExpired = b.ExpirationDate < today,
+                TotalStock = b.BatchLocations.Sum(bl => bl.CurrentStock),
+                StockByLocation = b.BatchLocations
+                    .OrderBy(bl => bl.LocationId)
+                    .Select(bl => new ExpiringBatchLocationDto
+                    {
+                        LocationId = bl.LocationId,
+                        LocationName = bl.Location.LocationName,
+                        CurrentStock = bl.CurrentStock
+                    })
+                    .ToList()
+            }).ToList();
+
+            return new PagedResponse<ExpiringBatchDto>
+            {
+                Data = items,
+                CurrentPage = paginationParams.Page,
+                PageSize = paginationParams.PageSize,
+                TotalRecords = totalRecords,
+                TotalPages = (int)Math.Ceiling(totalRecords / (double)paginationParams.PageSize)
+            };
+        }
+
+        public async Task<InventoryStatsDto> GetStatsAsync(string period, int expiringDays = 15)
         {
             var normalizedPeriod = NormalizePeriod(period);
             var periodStart = GetPeriodStart(normalizedPeriod);
@@ -247,10 +319,24 @@ namespace HerreraSystem.Infrastructure.Repositories
                 })
                 .SumAsync(b => b.TotalCurrentStock * b.UnitProductionCost);
 
+            var totalUnits = await _context.BatchLocations
+                .AsNoTracking()
+                .SumAsync(bl => (int?)bl.CurrentStock) ?? 0;
+
+            var today = DateOnly.FromDateTime(_dateTimeService.Now.Date);
+            var expiringThrough = today.AddDays(expiringDays);
+            var expiringLots = await _context.Batches
+                .AsNoTracking()
+                .Where(b => b.ExpirationDate >= today && b.ExpirationDate <= expiringThrough)
+                .Where(b => b.BatchLocations.Sum(bl => (int?)bl.CurrentStock) > 0)
+                .CountAsync();
+
             return new InventoryStatsDto
             {
                 TotalProducts = totalProducts,
+                TotalUnits = totalUnits,
                 LowStockProducts = lowStockProducts,
+                ExpiringLots = expiringLots,
                 BestSellingFlavor = bestSellingFlavor,
                 InventoryValue = inventoryValue
             };
@@ -290,7 +376,8 @@ namespace HerreraSystem.Infrastructure.Repositories
             string? search,
             int? lineId,
             int? flavorId,
-            int? presentationId)
+            int? presentationId,
+            bool? lowStock)
         {
             var now = _dateTimeService.Now;
 
@@ -311,7 +398,7 @@ namespace HerreraSystem.Infrastructure.Repositories
             if (presentationId.HasValue)
                 query = query.Where(p => p.LinePresentation.PresentationId == presentationId.Value);
 
-            return query
+            var inventoryQuery = query
                 .OrderBy(p => p.ProductName)
                 .Select(p => new InventoryProductDto
                 {
@@ -341,6 +428,11 @@ namespace HerreraSystem.Infrastructure.Repositories
                         .SelectMany(b => b.BatchLocations)
                         .Sum(bl => (int?)bl.CurrentStock) ?? 0,
 
+                    MinimumStock = p.MinimumStock,
+                    LowStock = (p.Batches
+                        .SelectMany(b => b.BatchLocations)
+                        .Sum(bl => (int?)bl.CurrentStock) ?? 0) <= p.MinimumStock,
+
                     RetailPrice = p.LinePresentation.ProductPrices
                         .Where(pp => pp.IsActive == true
                                   && pp.PriceTypeId == 1
@@ -357,6 +449,11 @@ namespace HerreraSystem.Infrastructure.Repositories
                         .Select(pp => (decimal?)pp.Price)
                         .FirstOrDefault()
                 });
+
+            if (lowStock.HasValue)
+                inventoryQuery = inventoryQuery.Where(p => p.LowStock == lowStock.Value);
+
+            return inventoryQuery;
         }
 
     }

@@ -49,4 +49,15 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<UserDto>.Ok(result.Data!));
     }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    {
+        var result = await _authService.ChangePasswordAsync(dto);
+        if (!result.Success)
+            return BadRequest(ApiResponse<string>.Fail(result.ErrorMessage!));
+
+        return Ok(ApiResponse<string>.Ok(result.Data!, result.Data!));
+    }
 }

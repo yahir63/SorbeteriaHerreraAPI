@@ -107,7 +107,7 @@ namespace HerreraSystem.Tests
                 movementDetailRepo,
                 dateTimeService);
 
-            _authService = new AuthService(userRepo, config);
+            _authService = new AuthService(userRepo, config, currentUserService);
 
             // Obtener lote de prueba activo para producto 1
             var batch = await _context.Batches
