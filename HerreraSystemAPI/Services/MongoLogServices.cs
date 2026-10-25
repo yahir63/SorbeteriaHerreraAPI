@@ -27,8 +27,8 @@ public class MongoLogService : ILogService
     private void InicializarIndices(int retentionDays)
     {
         // 1. Índice TTL (Time-To-Live) para purga automática
-        var ttlKeys = Builders<SystemLog>.IndexKeys.Ascending(x => x.Timestamp);
-        var ttlOptions = new CreateIndexOptions
+   var ttlKeys = Builders<SystemLog>.IndexKeys.Ascending(new StringFieldDefinition<SystemLog>("_ts"));     
+   var ttlOptions = new CreateIndexOptions
         {
             ExpireAfter = TimeSpan.FromDays(retentionDays)
         };
