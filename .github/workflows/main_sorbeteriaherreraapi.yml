@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: "SorbeteriaHerreraApi"
+  AZURE_WEBAPP_NAME: "SorbeteriaHerreraAPI"
   DOTNET_VERSION: "10.0.x"
   PROJECT_PATH: "HerreraSystemAPI/HerreraSystem.API.csproj"
   OUTPUT_PATH: "${{ github.workspace }}/publish"
