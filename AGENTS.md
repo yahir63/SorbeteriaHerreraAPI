@@ -133,6 +133,7 @@ Update the matching one whenever you change an endpoint contract or DTO shape.
 | `DOCUMENTACION_MODULO_MOVIMIENTOS_INVENTARIO.md` | Inventory movements |
 | `DOCUMENTACION_MODULO_REABASTECIMIENTOS_FRONTEND.md` | Restocks |
 | `DOCUMENTACION_MODULO_VENTAS_FRONTEND.md` | Sales |
+| `DOCUMENTACION_MODULO_LOGS.md` | Audit logs |
 
 ## Known risks
 

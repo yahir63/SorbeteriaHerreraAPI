@@ -26,6 +26,12 @@ public class AuditLoggingMiddleware
         HttpContext context,
         ILogService logService)
     {
+        if (context.Request.Path.StartsWithSegments("/api/Logs", StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
         var timer = Stopwatch.StartNew();
         var traceId = context.TraceIdentifier;
 
@@ -184,11 +190,11 @@ public class AuditLoggingMiddleware
         // Ocultar contraseñas, tokens, claves y secretos
         // enviados como valores de propiedades JSON.
         var pattern =
-            @"(?i)""(password|contraseña|token|secret|clave)""\s*:\s*""([^""]+)""";
+            @"(?i)(""[^""]*(?:password|contraseña|token|secret|clave)[^""]*"")\s*:\s*""([^""]*)""";
 
         return Regex.Replace(
             payload,
             pattern,
-            "\"$1\": \"******\"");
+            "$1: \"******\"");
     }
 }
